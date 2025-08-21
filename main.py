@@ -4,8 +4,7 @@ from sqlalchemy import create_engine, text
 import os
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import date
-from typing import Optional
-
+from typing import Optional, List
 
 app = FastAPI()
 
