@@ -1,27 +1,78 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hospital Dashboard</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="utf-8"/>
+  <title>Hospital Operations Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link href="style.css" rel="stylesheet"/>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-  <header>
-    <h1>🏥 Hospital Analytics Dashboard</h1>
-  </header>
+  <aside class="sidebar">
+    <h2>Filters</h2>
+    <label>Date range</label>
+    <input type="date" id="startDate">
+    <input type="date" id="endDate">
 
-  <main>
-    <section>
-      <h2>Patients</h2>
-      <button onclick="loadPatients()">Load Patients</button>
-      <div id="patients"></div>
+    <label>Ward(s)</label>
+    <select id="wardSelect" multiple></select>
+
+    <label>Doctor(s)</label>
+    <select id="doctorSelect" multiple></select>
+
+    <label>Status</label>
+    <select id="statusSelect">
+      <option value="all" selected>All</option>
+      <option value="active">Active</option>
+      <option value="discharged">Discharged</option>
+    </select>
+
+    <button id="applyBtn">Apply</button>
+    <small class="muted">Auto-refresh: every 60s</small>
+  </aside>
+
+  <main class="content">
+    <header class="topbar">
+      <h1>🏥 Hospital Operations</h1>
+    </header>
+
+    <section class="kpis">
+      <div class="kpi-card">
+        <div class="kpi-label">Bed Occupancy</div>
+        <div class="kpi-value" id="kpiOcc">--%</div>
+        <div class="kpi-sub" id="kpiBeds">-- / -- beds</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Active Admissions</div>
+        <div class="kpi-value" id="kpiActive">--</div>
+        <div class="kpi-sub">Discharges today: <span id="kpiDischToday">--</span></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Avg LOS</div>
+        <div class="kpi-value" id="kpiLOS">-- d</div>
+        <div class="kpi-sub">Discharged count: <span id="kpiDischCount">--</span></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Doctors on Duty</div>
+        <div class="kpi-value" id="kpiDocsPresent">--</div>
+        <div class="kpi-sub">Busy: <span id="kpiDocsBusy">--</span> / <span id="kpiDocsTotal">--</span></div>
+      </div>
     </section>
 
-    <section>
-      <h2>Doctors</h2>
-      <button onclick="loadDoctors()">Load Doctors</button>
-      <div id="doctors"></div>
+    <section class="charts">
+      <div class="chart-card">
+        <div class="chart-title">Admissions Over Time</div>
+        <canvas id="admissionsChart"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Ward Utilization</div>
+        <canvas id="wardsChart"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Doctor Status</div>
+        <canvas id="doctorsChart"></canvas>
+      </div>
     </section>
   </main>
 
