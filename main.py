@@ -14,7 +14,7 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://saitejhas16.github.io",  # your GitHub Pages site
+        "https://saitejhas16.github.io/hospital_analytics",  # your GitHub Pages site
     ],
     allow_credentials=True,
     allow_methods=["*"],
