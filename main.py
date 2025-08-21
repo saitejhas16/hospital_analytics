@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from sqlalchemy import create_engine, text
 import os
+from fastapi.middleware.cors import CORSMiddleware
 DB_USER = os.getenv("DB_USER")
 DB_PASS = os.getenv("DB_PASS")
 DB_HOST = os.getenv("DB_HOST")
@@ -9,6 +10,16 @@ DB_NAME = os.getenv("DB_NAME")
 
 app = FastAPI()
 
+# 👇 Add CORS settings
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://saitejhas16.github.io",  # your GitHub Pages site
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 # -----------------------------
 # Database Connection
 # -----------------------------
