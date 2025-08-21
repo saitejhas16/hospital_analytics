@@ -128,8 +128,20 @@ async function applyFilters() {
 // ====== INIT + AUTO REFRESH ======
 async function init() {
   await loadFilterOptions();
-  await applyFilters();
+
+  // --- set default dates: from 18-08-2018 to today ---
+  const today = new Date();
+  const defaultStart = "2018-08-18";   // YYYY-MM-DD format
+
+  qs("#startDate").value = defaultStart;
+  qs("#endDate").value = today.toISOString().slice(0,10);
+
+  // also set status = "all"
+  qs("#statusSelect").value = "all";
+
+  await applyFilters(); // load dashboard with defaults
   setInterval(applyFilters, AUTO_REFRESH_MS);
 }
+
 document.getElementById("applyBtn").addEventListener("click", applyFilters);
 init();
