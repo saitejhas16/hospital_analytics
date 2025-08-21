@@ -5,10 +5,7 @@ import os
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import date
 from typing import Optional
-DB_USER = os.getenv("DB_USER")
-DB_PASS = os.getenv("DB_PASS")
-DB_HOST = os.getenv("DB_HOST")
-DB_NAME = os.getenv("DB_NAME")
+
 
 app = FastAPI()
 
@@ -21,6 +18,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+DB_USER = os.getenv("DB_USER")
+DB_PASS = os.getenv("DB_PASS")
+DB_HOST = os.getenv("DB_HOST")
+DB_NAME = os.getenv("DB_NAME")
 # -----------------------------
 # Database Connection
 # -----------------------------
