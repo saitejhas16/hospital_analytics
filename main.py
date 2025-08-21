@@ -2,6 +2,10 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from sqlalchemy import create_engine, text
 import os
+DB_USER = os.getenv("DB_USER")
+DB_PASS = os.getenv("DB_PASS")
+DB_HOST = os.getenv("DB_HOST")
+DB_NAME = os.getenv("DB_NAME")
 
 app = FastAPI()
 
