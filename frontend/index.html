@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hospital Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>🏥 Hospital Analytics Dashboard</h1>
+  </header>
+
+  <main>
+    <section>
+      <h2>Patients</h2>
+      <button onclick="loadPatients()">Load Patients</button>
+      <div id="patients"></div>
+    </section>
+
+    <section>
+      <h2>Doctors</h2>
+      <button onclick="loadDoctors()">Load Doctors</button>
+      <div id="doctors"></div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
