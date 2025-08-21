@@ -3,6 +3,8 @@ from pydantic import BaseModel
 from sqlalchemy import create_engine, text
 import os
 from fastapi.middleware.cors import CORSMiddleware
+from datetime import date
+from typing import Optional
 DB_USER = os.getenv("DB_USER")
 DB_PASS = os.getenv("DB_PASS")
 DB_HOST = os.getenv("DB_HOST")
@@ -59,8 +61,17 @@ def kpis(
     end: Optional[str] = None,
     ward_ids: Optional[str] = None,
     doctor_ids: Optional[str] = None,
-    status: str = "all"   # "active" (no discharge), "discharged" (has discharge), "all"
+    status: str = "all"   # "active", "discharged", "all"
 ):
+    # ✅ Default to 2018-08-18 → today
+    if not start:
+        start = "2018-08-18"
+    if not end:
+        end = str(date.today())   # YYYY-MM-DD format
+
+    # ✅ Parse ward_ids and doctor_ids if passed
+    ward_list = ward_ids.split(",") if ward_ids else []
+    doctor_list = doctor_ids.split(",") if doctor_ids else []
     wids = parse_csv_ints(ward_ids)
     dids = parse_csv_ints(doctor_ids)
 
