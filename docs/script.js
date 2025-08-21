@@ -8,7 +8,7 @@ async function loadPatients() {
 }
 
 async function loadDoctors() {
-  const res = await fetch(`${BACKEND_URL}/doctors`);
+  const res = await fetch(`${BACKEND_URL}/admissions`);
   const data = await res.json();
   document.getElementById("doctors").innerHTML =
     "<pre>" + JSON.stringify(data, null, 2) + "</pre>";
