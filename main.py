@@ -16,7 +16,7 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://saitejhas16.github.io/hospital_analytics",  # your GitHub Pages site
+        "https://saitejhas16.github.io",  # your GitHub Pages site
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -229,7 +229,7 @@ def admissions_series(
 
 # Ward utilization (by current bed flags)
 @app.get("/wards/utilization")
-def ward_utilization():
+def ward_utilization(status: str = "all"):
     sql = """
       SELECT w.ward_id, w.ward_name, w.capacity,
              COUNT(b.bed_id) AS configured_beds,
@@ -241,11 +241,13 @@ def ward_utilization():
     """
     with engine.connect() as conn:
         rows = [dict(r) for r in conn.execute(text(sql)).mappings()]
-    # occupancy percent based on bed rows if present, else capacity
+
     for r in rows:
         denom = r["configured_beds"] or r["capacity"] or 0
         r["occupancy_rate"] = round((r["occupied"]/denom)*100, 1) if denom else 0
+
     return {"wards": rows}
+
 
 # Doctor workload snapshot
 @app.get("/doctors/workload")
