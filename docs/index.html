@@ -9,8 +9,10 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+  <!-- SIDEBAR FILTERS -->
   <aside class="sidebar">
     <h2>Filters</h2>
+
     <label>Date range</label>
     <input type="date" id="startDate">
     <input type="date" id="endDate">
@@ -28,10 +30,10 @@
       <option value="discharged">Discharged</option>
     </select>
 
-    <button id="applyBtn">Apply</button>
     <small class="muted">Auto-refresh: every 60s</small>
   </aside>
 
+  <!-- MAIN CONTENT -->
   <main class="content">
     <header class="topbar">
       <h1>🏥 Hospital Operations</h1>
@@ -59,14 +61,25 @@
 
     <!-- CHARTS -->
     <section class="charts">
+      <!-- Admissions Over Time with toggle -->
       <div class="chart-card">
-        <div class="chart-title">Admissions Over Time</div>
+        <div class="chart-title">
+          Admissions Over Time
+          <div class="granularity-toggle">
+            <button id="weekBtn">Week</button>
+            <button id="monthBtn">Month</button>
+          </div>
+        </div>
         <canvas id="admissionsChart"></canvas>
       </div>
+
+      <!-- Ward Utilization -->
       <div class="chart-card">
         <div class="chart-title">Ward Utilization</div>
         <canvas id="wardsChart"></canvas>
       </div>
+
+      <!-- Doctor Workload -->
       <div class="chart-card">
         <div class="chart-title">Doctor Workload (Active Patients)</div>
         <canvas id="doctorsChart"></canvas>

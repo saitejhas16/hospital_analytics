@@ -9,11 +9,13 @@ const state = {
   ward_ids: [],
   doctor_ids: [],
   status: "all",
+  granularity: "week", // default admissions view
   charts: {}
 };
 
 // ====== HELPERS ======
 const qs = (sel) => document.querySelector(sel);
+
 function buildParams() {
   const p = new URLSearchParams();
   if (state.start) p.set("start", state.start);
@@ -23,12 +25,14 @@ function buildParams() {
   if (state.status) p.set("status", state.status);
   return p.toString();
 }
+
 async function api(path) {
   const url = `${BACKEND_URL}${path}${path.includes("?") ? "&" : "?"}${buildParams()}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   return res.json();
 }
+
 function setMultiSelect(selectEl, items, idKey, labelKey) {
   selectEl.innerHTML = "";
   items.forEach(it => {
@@ -38,6 +42,7 @@ function setMultiSelect(selectEl, items, idKey, labelKey) {
     selectEl.appendChild(opt);
   });
 }
+
 function getSelected(selectEl) {
   return Array.from(selectEl.selectedOptions).map(o => parseInt(o.value, 10));
 }
@@ -45,10 +50,11 @@ function getSelected(selectEl) {
 // ====== INITIAL DATA FOR FILTERS ======
 async function loadFilterOptions() {
   // wards
-  const wards = await api("/wards/utilization"); // {wards:[{ward_id, ward_name,...}]}
+  const wards = await api("/wards/utilization"); 
   setMultiSelect(qs("#wardSelect"), wards.wards, "ward_id", "ward_name");
+
   // doctors
-  const docs = await api("/doctors/workload"); // {doctors:[{doctor_id, name,...}]}
+  const docs = await api("/doctors/workload");
   setMultiSelect(qs("#doctorSelect"), docs.doctors, "doctor_id", "name");
 }
 
@@ -69,16 +75,34 @@ function ensureChart(id, config) {
   state.charts[id] = new Chart(qs("#"+id), config);
 }
 
-async function refreshCharts() {
-  // Admissions series
-  const series = await api("/admissions/series?granularity=day");
+async function refreshAdmissionsChart() {
+  const series = await api(`/admissions/series?granularity=${state.granularity}`);
   const labels = series.series.map(r => r.bucket);
   const values = series.series.map(r => r.admissions);
+
   ensureChart("admissionsChart", {
     type: "line",
-    data: { labels, datasets: [{ label: "Admissions", data: values, borderColor:"#007bff", fill:false }] },
-    options: { responsive:true, interaction:{mode:"index", intersect:false}, plugins:{legend:{display:false}}, scales:{x:{ticks:{maxRotation:0}}}}
+    data: { 
+      labels, 
+      datasets: [{ 
+        label: `Admissions (${state.granularity})`, 
+        data: values, 
+        borderColor:"#007bff", 
+        fill:false, 
+        tension:0.2 
+      }] 
+    },
+    options: { 
+      responsive:true, 
+      interaction:{mode:"index", intersect:false}, 
+      plugins:{legend:{display:true}}, 
+      scales:{x:{ticks:{maxRotation:0}}, y:{beginAtZero:true}} 
+    }
   });
+}
+
+async function refreshCharts() {
+  await refreshAdmissionsChart();
 
   // Ward utilization
   const wards = await api("/wards/utilization");
@@ -90,7 +114,7 @@ async function refreshCharts() {
     options:{ responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,max:100}}}
   });
 
-  // Doctor workload (active patients)
+  // Doctor workload
   const docs = await api("/doctors/workload");
   const dLabels = docs.doctors.map(d => d.name);
   const dActive = docs.doctors.map(d => d.active_patients || 0);
@@ -112,6 +136,7 @@ function readFilters() {
   state.doctor_ids = getSelected(qs("#doctorSelect"));
   state.status = qs("#statusSelect").value;
 }
+
 async function applyFilters() {
   readFilters();
   await Promise.all([refreshKPIs(), refreshCharts()]);
@@ -124,16 +149,25 @@ async function init() {
   // --- set default dates: from 18-08-2018 to today ---
   const today = new Date();
   const defaultStart = "2018-08-18";   // YYYY-MM-DD format
-
   qs("#startDate").value = defaultStart;
   qs("#endDate").value = today.toISOString().slice(0,10);
 
-  // also set status = "all"
+  // status = "all"
   qs("#statusSelect").value = "all";
 
-  await applyFilters(); // load dashboard with defaults
+  await applyFilters(); 
   setInterval(applyFilters, AUTO_REFRESH_MS);
 }
 
-document.getElementById("applyBtn").addEventListener("click", applyFilters);
+// ====== EVENT LISTENERS ======
+// Granularity toggle
+qs("#weekBtn").addEventListener("click", () => { state.granularity = "week"; applyFilters(); });
+qs("#monthBtn").addEventListener("click", () => { state.granularity = "month"; applyFilters(); });
+
+// Auto-refresh on filter change
+["startDate","endDate","statusSelect","wardSelect","doctorSelect"].forEach(id => {
+  qs("#"+id).addEventListener("change", applyFilters);
+});
+
+// Init
 init();
