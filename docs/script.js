@@ -15,7 +15,6 @@ const state = {
 
 // ====== HELPERS ======
 const qs = (sel) => document.querySelector(sel);
-
 function buildParams() {
   const p = new URLSearchParams();
   if (state.start) p.set("start", state.start);
@@ -25,14 +24,12 @@ function buildParams() {
   if (state.status) p.set("status", state.status);
   return p.toString();
 }
-
 async function api(path) {
   const url = `${BACKEND_URL}${path}${path.includes("?") ? "&" : "?"}${buildParams()}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   return res.json();
 }
-
 function setMultiSelect(selectEl, items, idKey, labelKey) {
   selectEl.innerHTML = "";
   items.forEach(it => {
@@ -42,7 +39,6 @@ function setMultiSelect(selectEl, items, idKey, labelKey) {
     selectEl.appendChild(opt);
   });
 }
-
 function getSelected(selectEl) {
   return Array.from(selectEl.selectedOptions).map(o => parseInt(o.value, 10));
 }
@@ -50,11 +46,10 @@ function getSelected(selectEl) {
 // ====== INITIAL DATA FOR FILTERS ======
 async function loadFilterOptions() {
   // wards
-  const wards = await api("/wards/utilization"); 
+  const wards = await api("/wards/utilization"); // {wards:[{ward_id, ward_name,...}]}
   setMultiSelect(qs("#wardSelect"), wards.wards, "ward_id", "ward_name");
-
   // doctors
-  const docs = await api("/doctors/workload");
+  const docs = await api("/doctors/workload"); // {doctors:[{doctor_id, name,...}]}
   setMultiSelect(qs("#doctorSelect"), docs.doctors, "doctor_id", "name");
 }
 
@@ -75,34 +70,16 @@ function ensureChart(id, config) {
   state.charts[id] = new Chart(qs("#"+id), config);
 }
 
-async function refreshAdmissionsChart() {
-  const series = await api(`/admissions/series?granularity=${state.granularity}`);
+async function refreshCharts() {
+  // Admissions series
+  const series = await api("/admissions/series?granularity=day");
   const labels = series.series.map(r => r.bucket);
   const values = series.series.map(r => r.admissions);
-
   ensureChart("admissionsChart", {
     type: "line",
-    data: { 
-      labels, 
-      datasets: [{ 
-        label: `Admissions (${state.granularity})`, 
-        data: values, 
-        borderColor:"#007bff", 
-        fill:false, 
-        tension:0.2 
-      }] 
-    },
-    options: { 
-      responsive:true, 
-      interaction:{mode:"index", intersect:false}, 
-      plugins:{legend:{display:true}}, 
-      scales:{x:{ticks:{maxRotation:0}}, y:{beginAtZero:true}} 
-    }
+    data: { labels, datasets: [{ label: "Admissions", data: values, borderColor:"#007bff", fill:false }] },
+    options: { responsive:true, interaction:{mode:"index", intersect:false}, plugins:{legend:{display:false}}, scales:{x:{ticks:{maxRotation:0}}}}
   });
-}
-
-async function refreshCharts() {
-  await refreshAdmissionsChart();
 
   // Ward utilization
   const wards = await api("/wards/utilization");
@@ -114,7 +91,7 @@ async function refreshCharts() {
     options:{ responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,max:100}}}
   });
 
-  // Doctor workload
+  // Doctor workload (active patients)
   const docs = await api("/doctors/workload");
   const dLabels = docs.doctors.map(d => d.name);
   const dActive = docs.doctors.map(d => d.active_patients || 0);
@@ -136,7 +113,6 @@ function readFilters() {
   state.doctor_ids = getSelected(qs("#doctorSelect"));
   state.status = qs("#statusSelect").value;
 }
-
 async function applyFilters() {
   readFilters();
   await Promise.all([refreshKPIs(), refreshCharts()]);
