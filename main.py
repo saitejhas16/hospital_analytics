@@ -209,4 +209,5 @@ def doctor_workload(doctor_ids: Optional[str] = None):
     """
 
     with engine.connect() as conn:
-        rows = [dict(r) for r in]()
+        rows = [dict(r) for r in conn.execute(text(sql), params).mappings()]
+    return {"doctors": rows}
