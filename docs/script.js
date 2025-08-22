@@ -55,18 +55,12 @@ async function loadFilterOptions() {
 // ====== KPI RENDER ======
 async function refreshKPIs() {
   const data = await api("/kpis");
-  // beds
-  qs("#kpiOcc").textContent = `${data.beds.occupancy_rate}%`;
-  qs("#kpiBeds").textContent = `${data.beds.occupied} / ${data.beds.total}`;
-  // admissions
-  qs("#kpiActive").textContent = data.admissions.active;
-  qs("#kpiDischToday").textContent = data.admissions.discharges_today;
-  qs("#kpiLOS").textContent = `${data.admissions.avg_length_of_stay_days} d`;
-  qs("#kpiDischCount").textContent = data.admissions.discharged;
-  // doctors
-  qs("#kpiDocsPresent").textContent = data.doctors.present;
-  qs("#kpiDocsBusy").textContent = data.doctors.busy;
-  qs("#kpiDocsTotal").textContent = data.doctors.total;
+
+  // summary KPIs
+  qs("#kpiOcc").textContent = `${data.summary.occupancy_rate}%`;
+  qs("#kpiActive").textContent = data.summary.active_admissions;
+  qs("#kpiPatients").textContent = data.summary.total_patients;
+  qs("#kpiDoctors").textContent = data.summary.total_doctors;
 }
 
 // ====== CHARTS ======
@@ -82,7 +76,7 @@ async function refreshCharts() {
   const values = series.series.map(r => r.admissions);
   ensureChart("admissionsChart", {
     type: "line",
-    data: { labels, datasets: [{ label: "Admissions", data: values }] },
+    data: { labels, datasets: [{ label: "Admissions", data: values, borderColor:"#007bff", fill:false }] },
     options: { responsive:true, interaction:{mode:"index", intersect:false}, plugins:{legend:{display:false}}, scales:{x:{ticks:{maxRotation:0}}}}
   });
 
@@ -92,23 +86,21 @@ async function refreshCharts() {
   const wOcc = wards.wards.map(w => w.occupancy_rate);
   ensureChart("wardsChart", {
     type: "bar",
-    data: { labels: wLabels, datasets: [{ label:"Occupancy %", data:wOcc }] },
+    data: { labels: wLabels, datasets: [{ label:"Occupancy %", data:wOcc, backgroundColor:"#28a745" }] },
     options:{ responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,max:100}}}
   });
 
-  // Doctor status
+  // Doctor workload (active patients)
   const docs = await api("/doctors/workload");
   const dLabels = docs.doctors.map(d => d.name);
-  const dBusy = docs.doctors.map(d => d.is_busy ? 1 : 0);
-  const dPresent = docs.doctors.map(d => d.is_present ? 1 : 0);
+  const dActive = docs.doctors.map(d => d.active_patients || 0);
   ensureChart("doctorsChart", {
     type: "bar",
     data: { labels: dLabels,
       datasets: [
-        { label:"Present", data:dPresent },
-        { label:"Busy", data:dBusy }
+        { label:"Active Patients", data:dActive, backgroundColor:"#ffc107" }
       ]},
-    options:{ responsive:true, interaction:{mode:"index",intersect:false} }
+    options:{ responsive:true, plugins:{legend:{display:true}}, scales:{y:{beginAtZero:true}} }
   });
 }
 

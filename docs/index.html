@@ -37,29 +37,27 @@
       <h1>🏥 Hospital Operations</h1>
     </header>
 
+    <!-- KPI CARDS -->
     <section class="kpis">
       <div class="kpi-card">
         <div class="kpi-label">Bed Occupancy</div>
         <div class="kpi-value" id="kpiOcc">--%</div>
-        <div class="kpi-sub" id="kpiBeds">-- / -- beds</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Active Admissions</div>
         <div class="kpi-value" id="kpiActive">--</div>
-        <div class="kpi-sub">Discharges today: <span id="kpiDischToday">--</span></div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Avg LOS</div>
-        <div class="kpi-value" id="kpiLOS">-- d</div>
-        <div class="kpi-sub">Discharged count: <span id="kpiDischCount">--</span></div>
+        <div class="kpi-label">Total Patients</div>
+        <div class="kpi-value" id="kpiPatients">--</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Doctors on Duty</div>
-        <div class="kpi-value" id="kpiDocsPresent">--</div>
-        <div class="kpi-sub">Busy: <span id="kpiDocsBusy">--</span> / <span id="kpiDocsTotal">--</span></div>
+        <div class="kpi-label">Total Doctors</div>
+        <div class="kpi-value" id="kpiDoctors">--</div>
       </div>
     </section>
 
+    <!-- CHARTS -->
     <section class="charts">
       <div class="chart-card">
         <div class="chart-title">Admissions Over Time</div>
@@ -70,7 +68,7 @@
         <canvas id="wardsChart"></canvas>
       </div>
       <div class="chart-card">
-        <div class="chart-title">Doctor Status</div>
+        <div class="chart-title">Doctor Workload (Active Patients)</div>
         <canvas id="doctorsChart"></canvas>
       </div>
     </section>
