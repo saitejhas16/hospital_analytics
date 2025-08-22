@@ -62,128 +62,67 @@ def kpis(
     doctor_ids: Optional[str] = None,
     status: str = "all"   # "active", "discharged", "all"
 ):
-    # ✅ Default to 2018-08-18 → today
-    if not start:
-        start = "2018-08-18"
-    if not end:
-        end = str(date.today())   # YYYY-MM-DD format
-
-    # ✅ Parse ward_ids and doctor_ids if passed
-    ward_list = ward_ids.split(",") if ward_ids else []
-    doctor_list = doctor_ids.split(",") if doctor_ids else []
-    wids = parse_csv_ints(ward_ids)
     dids = parse_csv_ints(doctor_ids)
+    wids = parse_csv_ints(ward_ids)
+
+    where_sql, params = [], {}
+
+    if start:
+        where_sql.append("a.admission_time >= :start")
+        params["start"] = start
+    if end:
+        where_sql.append("a.admission_time <= :end")
+        params["end"] = end
+    if status == "active":
+        where_sql.append("a.discharge_time IS NULL")
+    elif status == "discharged":
+        where_sql.append("a.discharge_time IS NOT NULL")
+    if dids:
+        sql_part, p = build_in_clause("a.attending_doctor_id", dids, "dsel")
+        where_sql.append(sql_part)
+        params.update(p)
+    if wids:
+        sql_part, p = build_in_clause("b.ward_id", wids, "wsel")
+        where_sql.append(sql_part)
+        params.update(p)
+
+    where_clause = "WHERE " + " AND ".join(where_sql) if where_sql else ""
+
+    sql = f"""
+      SELECT
+        COUNT(DISTINCT a.patient_id) AS total_patients,
+        COUNT(DISTINCT a.admission_id) AS total_admissions,
+        COUNT(DISTINCT CASE WHEN a.discharge_time IS NULL THEN a.admission_id END) AS active_admissions,
+        COUNT(DISTINCT CASE WHEN a.discharge_time IS NOT NULL THEN a.admission_id END) AS discharged_admissions,
+        COUNT(DISTINCT d.doctor_id) AS total_doctors,
+        SUM(CASE WHEN a.discharge_time IS NULL THEN 1 ELSE 0 END) / NULLIF(COUNT(*),0) * 100 AS occupancy_rate
+      FROM admissions a
+      LEFT JOIN beds b ON a.bed_id = b.bed_id
+      LEFT JOIN doctors d ON a.attending_doctor_id = d.doctor_id
+      {where_clause}
+    """
 
     with engine.connect() as conn:
-        # TOTAL & OCCUPIED BEDS (by current bed flags, optionally filter by wards)
-        bed_where, bed_params = [], {}
-        if wids:
-            bed_in, bed_in_params = build_in_clause("b.ward_id", wids, "wid")
-            bed_where.append(bed_in)
-            bed_params.update(bed_in_params)
-        bed_where_sql = ("WHERE " + " AND ".join(bed_where)) if bed_where else ""
-        bed_sql = f"""
-            SELECT COUNT(*) AS total_beds,
-                   SUM(CASE WHEN b.is_occupied=1 THEN 1 ELSE 0 END) AS occupied_beds
-            FROM beds b
-            {bed_where_sql}
-        """
-        beds_row = conn.execute(text(bed_sql), bed_params).mappings().first()
-        total_beds = beds_row["total_beds"] or 0
-        occupied_beds = beds_row["occupied_beds"] or 0
-        occupancy_rate = (occupied_beds / total_beds) * 100 if total_beds else 0
+        row = dict(conn.execute(text(sql), params).mappings().first() or {})
 
-        # DOCTORS ON DUTY / BUSY (optionally filter by doctor_ids)
-        doc_where, doc_params = [], {}
-        if dids:
-            doc_in, doc_in_params = build_in_clause("d.doctor_id", dids, "did")
-            doc_where.append(doc_in)
-            doc_params.update(doc_in_params)
-        doc_where_sql = ("WHERE " + " AND ".join(doc_where)) if doc_where else ""
-        docs_sql = f"""
-            SELECT SUM(CASE WHEN d.is_present=1 THEN 1 ELSE 0 END) AS doctors_present,
-                   SUM(CASE WHEN d.is_busy=1 THEN 1 ELSE 0 END) AS doctors_busy,
-                   COUNT(*) AS doctors_total
-            FROM doctors d
-            {doc_where_sql}
-        """
-        docs_row = conn.execute(text(docs_sql), doc_params).mappings().first()
-        doctors_present = docs_row["doctors_present"] or 0
-        doctors_busy = docs_row["doctors_busy"] or 0
-        doctors_total = docs_row["doctors_total"] or 0
+    # Add per-doctor workload
+    sql_doctors = f"""
+      SELECT d.doctor_id, d.name, d.specialty,
+             COUNT(a.admission_id) AS active_patients
+      FROM doctors d
+      LEFT JOIN admissions a
+        ON d.doctor_id = a.attending_doctor_id
+       AND a.discharge_time IS NULL
+      GROUP BY d.doctor_id, d.name, d.specialty
+      ORDER BY active_patients DESC
+    """
+    with engine.connect() as conn:
+        doctors = [dict(r) for r in conn.execute(text(sql_doctors)).mappings()]
 
-        # ADMISSIONS KPIs (filters by date, ward, doctor, status)
-        adm_clauses, adm_params = [], {}
-        # Date filter on admission_time by default
-        date_clauses, date_params = build_date_clause(start, end, "a.admission_time")
-        adm_clauses += date_clauses; adm_params.update(date_params)
-        # Ward filter (via beds)
-        if wids:
-            ward_in, ward_params = build_in_clause("b.ward_id", wids, "w2")
-            adm_clauses.append(ward_in); adm_params.update(ward_params)
-        # Doctor filter
-        if dids:
-            doc_in2, doc_params2 = build_in_clause("a.attending_doctor_id", dids, "d2")
-            adm_clauses.append(doc_in2); adm_params.update(doc_params2)
-        # Status filter
-        if status == "active":
-            adm_clauses.append("a.discharge_time IS NULL")
-        elif status == "discharged":
-            adm_clauses.append("a.discharge_time IS NOT NULL")
-        adm_where = ("WHERE " + " AND ".join(adm_clauses)) if adm_clauses else ""
-
-        kpi_adm_sql = f"""
-            SELECT
-              SUM(CASE WHEN a.discharge_time IS NULL THEN 1 ELSE 0 END) AS active_admissions,
-              SUM(CASE WHEN a.discharge_time IS NOT NULL THEN 1 ELSE 0 END) AS discharged_count,
-              AVG(CASE WHEN a.discharge_time IS NOT NULL
-                       THEN TIMESTAMPDIFF(HOUR, a.admission_time, a.discharge_time)
-                       END) AS avg_los_hours
-            FROM admissions a
-            LEFT JOIN beds b ON a.bed_id = b.bed_id
-            {adm_where}
-        """
-        adm_row = conn.execute(text(kpi_adm_sql), adm_params).mappings().first()
-        active_adm = adm_row["active_admissions"] or 0
-        discharged_count = adm_row["discharged_count"] or 0
-        avg_los_hours = adm_row["avg_los_hours"] or 0
-        avg_los_days = round(avg_los_hours/24, 2) if avg_los_hours else 0
-
-        # Discharges today
-        disch_clauses = adm_clauses.copy()
-        # override to today if no start/end
-        today_sql = "CURDATE()"
-        disch_clauses = [c for c in disch_clauses if not c.startswith("a.admission_time")]
-        disch_clauses.append("a.discharge_time IS NOT NULL")
-        disch_clauses.append("DATE(a.discharge_time) = CURDATE()")
-        disch_where = ("WHERE " + " AND ".join(disch_clauses)) if disch_clauses else "WHERE DATE(a.discharge_time)=CURDATE()"
-        disch_sql = f"""
-            SELECT COUNT(*) AS discharges_today
-            FROM admissions a
-            LEFT JOIN beds b ON a.bed_id=b.bed_id
-            {disch_where}
-        """
-        disch_row = conn.execute(text(disch_sql), adm_params).mappings().first()
-        discharges_today = disch_row["discharges_today"] or 0
-
-        return {
-            "beds": {
-                "total": int(total_beds),
-                "occupied": int(occupied_beds),
-                "occupancy_rate": round(occupancy_rate, 1)
-            },
-            "admissions": {
-                "active": int(active_adm),
-                "discharged": int(discharged_count),
-                "avg_length_of_stay_days": float(avg_los_days),
-                "discharges_today": int(discharges_today)
-            },
-            "doctors": {
-                "present": int(doctors_present),
-                "busy": int(doctors_busy),
-                "total": int(doctors_total)
-            }
-        }
+    return {
+        "summary": row,
+        "doctors": doctors
+    }
 
 # Admissions time series (hour/day)
 @app.get("/admissions/series")
@@ -256,12 +195,18 @@ def doctor_workload(doctor_ids: Optional[str] = None):
     if dids:
         where_sql, params = build_in_clause("d.doctor_id", dids, "d4")
         where_sql = "WHERE " + where_sql
+
     sql = f"""
-      SELECT d.doctor_id, d.name, d.specialty, d.is_present, d.is_busy
+      SELECT d.doctor_id, d.name, d.specialty,
+             COUNT(a.admission_id) AS active_patients
       FROM doctors d
+      LEFT JOIN admissions a
+        ON d.doctor_id = a.attending_doctor_id
+       AND a.discharge_time IS NULL
       {where_sql}
+      GROUP BY d.doctor_id, d.name, d.specialty
       ORDER BY d.doctor_id
     """
+
     with engine.connect() as conn:
-        rows = [dict(r) for r in conn.execute(text(sql), params).mappings()]
-    return {"doctors": rows}
+        rows = [dict(r) for r in]()
