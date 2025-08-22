@@ -64,22 +64,41 @@ async function refreshKPIs() {
   qs("#kpiDoctors").textContent = data.summary.total_doctors;
 }
 
+
 // ====== CHARTS ======
 function ensureChart(id, config) {
   if (state.charts[id]) { state.charts[id].destroy(); }
   state.charts[id] = new Chart(qs("#"+id), config);
 }
 
-async function refreshCharts() {
-  // Admissions series
-  const series = await api("/admissions/series?granularity=day");
+async function refreshAdmissionsChart() {
+  const series = await api(`/admissions/series?granularity=${state.granularity}`);
   const labels = series.series.map(r => r.bucket);
   const values = series.series.map(r => r.admissions);
+
   ensureChart("admissionsChart", {
     type: "line",
-    data: { labels, datasets: [{ label: "Admissions", data: values, borderColor:"#007bff", fill:false }] },
-    options: { responsive:true, interaction:{mode:"index", intersect:false}, plugins:{legend:{display:false}}, scales:{x:{ticks:{maxRotation:0}}}}
+    data: { 
+      labels, 
+      datasets: [{ 
+        label: `Admissions (${state.granularity})`, 
+        data: values, 
+        borderColor:"#007bff", 
+        fill:false, 
+        tension:0.2 
+      }] 
+    },
+    options: { 
+      responsive:true, 
+      interaction:{mode:"index", intersect:false}, 
+      plugins:{legend:{display:true}}, 
+      scales:{x:{ticks:{maxRotation:0}}, y:{beginAtZero:true}} 
+    }
   });
+}
+
+async function refreshCharts() {
+  await refreshAdmissionsChart();
 
   // Ward utilization
   const wards = await api("/wards/utilization");
